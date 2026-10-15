@@ -1,0 +1,20 @@
+[project]
+name = "whisperx-web"
+version = "0.1.0"
+description = "OpenAI-compatible transcription web API wrapping WhisperX"
+readme = "README.md"
+requires-python = ">=3.10,<3.14"
+license = { text = "BSD-2-Clause" }
+dependencies = [
+    "whisperx>=3.7.0",
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.32.0",
+    "python-multipart>=0.0.20",
+]
+
+[project.scripts]
+whisperx-web = "whisperx_web.main:cli"
+
+[tool.setuptools.packages.find]
+include = ["whisperx_web*"]
+

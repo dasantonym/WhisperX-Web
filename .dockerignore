@@ -1,0 +1,32 @@
+# Git
+.git
+.gitignore
+
+# Python
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+
+# Local state
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Docker
+Dockerfile*
+.dockerignore
+docker-compose*.yml
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
+
+# Docs and scratch
+*.md
+!README.md
+tmp/

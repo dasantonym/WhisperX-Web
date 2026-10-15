@@ -1,0 +1,30 @@
+# CUDA image: CUDA 12.6 + cuDNN 9 runtime (required by ctranslate2 on GPU),
+# ffmpeg (required by whisperx.load_audio), and CUDA torch wheels.
+FROM nvidia/cuda:12.6.3-cudnn-runtime-ubuntu22.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        ffmpeg python3 python3-pip \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+COPY pyproject.toml README.md ./
+COPY whisperx_web ./whisperx_web
+
+# whisperx pins torch~=2.8.0 / torchvision~=0.23.0; install the CUDA 12.6
+# wheels up front so the later `pip install .` keeps them. cuDNN 9 comes from
+# the base image (required by ctranslate2 on GPU).
+RUN python3 -m pip install --no-cache-dir \
+        'torch~=2.8.0' 'torchaudio~=2.8.0' 'torchvision~=0.23.0' \
+        --index-url https://download.pytorch.org/whl/cu126 \
+    && python3 -m pip install --no-cache-dir .
+
+ENV WHISPERX_HOST=0.0.0.0 \
+    WHISPERX_PORT=8000
+
+EXPOSE 8000
+
+CMD ["whisperx-web"]

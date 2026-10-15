@@ -1,0 +1,26 @@
+# CPU image: slim Python base + ffmpeg (required by whisperx.load_audio).
+FROM python:3.12-slim
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ffmpeg \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+COPY pyproject.toml README.md ./
+COPY whisperx_web ./whisperx_web
+
+# whisperx pins torch~=2.8.0 / torchvision~=0.23.0; pre-install matching CPU
+# wheels so the later `pip install .` keeps them instead of swapping in the
+# CUDA-flavored builds from PyPI.
+RUN pip install --no-cache-dir \
+        'torch~=2.8.0' 'torchaudio~=2.8.0' 'torchvision~=0.23.0' \
+        --index-url https://download.pytorch.org/whl/cpu \
+    && pip install --no-cache-dir .
+
+ENV WHISPERX_HOST=0.0.0.0 \
+    WHISPERX_PORT=8000
+
+EXPOSE 8000
+
+CMD ["whisperx-web"]
