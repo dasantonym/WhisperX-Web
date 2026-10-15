@@ -323,7 +323,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @app.post(
         "/v1/audio/transcriptions",
         response_class=Response,
-        responses={code: {"content": {mt: {}}} for code, mt in MEDIA_TYPES.items()},
+        # Document every media type the endpoint may return for a 200
+        # response (keys must be HTTP status codes, not format enums).
+        responses={
+            200: {"content": {media_type: {}} for media_type in MEDIA_TYPES.values()}
+        },
     )
     async def transcriptions(
         form: Annotated[TranscriptionForm, Form()],
