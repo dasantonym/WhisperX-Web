@@ -159,6 +159,23 @@ HuggingFace error.
 
 ## Docker
 
+### Prebuilt images
+
+CI publishes both images to the GitHub Container Registry on pushes to
+`main`, `v*` release tags, and manual dispatch:
+
+```bash
+docker pull ghcr.io/dasantonym/whisperx-web:cpu
+docker pull ghcr.io/dasantonym/whisperx-web:cuda
+```
+
+`cpu` and `cuda` track `main`; release tags (`0.1.0-cpu`, `0.1.0-cuda`, and
+so on) and `latest-cpu` / `latest-cuda` are added when a `v*` tag is pushed.
+New packages are private by default — make the package public in the GitHub
+package settings if you want anonymous pulls.
+
+### Build locally
+
 CPU image:
 
 ```bash
