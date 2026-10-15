@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- GitHub Actions workflow that builds the CPU and CUDA Docker images and
+  publishes them to the GitHub Container Registry on pushes to `main`,
+  `v*` release tags, and manual dispatch (images are tagged `cpu`, `cuda`,
+  `<version>-cpu`/`-cuda`, and `latest-cpu`/`latest-cuda`); pull requests
+  build both images without pushing.
+
 ## [0.1.0] - 2026-10-16
 
 Initial release. While the project is in the 0.x initial-development phase

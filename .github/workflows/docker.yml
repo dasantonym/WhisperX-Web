@@ -1,0 +1,80 @@
+# Builds the CPU and CUDA images and publishes them to the GitHub Container
+# Registry (ghcr.io/dasantonym/whisperx-web).
+#
+# Tagging scheme (per variant):
+# - pushes to main:  `cpu`, `cuda` (rolling build of main)
+# - `v*` tag pushes: `<version>-cpu/-cuda` and `latest-cpu/-cuda` release
+#   tags, plus the rolling `cpu`/`cuda` tags
+# - pull requests:   build both images, push nothing
+name: Docker
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: docker-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  build:
+    name: Build ${{ matrix.variant }} image
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - variant: cpu
+            dockerfile: Dockerfile.cpu
+          - variant: cuda
+            dockerfile: Dockerfile.cuda
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Log in to GitHub Container Registry
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract Docker metadata
+        id: meta
+        uses: docker/metadata-action@v6
+        with:
+          # metadata-action lowercases the repository name, which GHCR requires.
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=raw,value=${{ matrix.variant }}
+            type=raw,value=latest-${{ matrix.variant }},enable=${{ startsWith(github.ref, 'refs/tags/v') }}
+            type=semver,pattern={{version}}-${{ matrix.variant }}
+
+      - name: Build and push ${{ matrix.variant }} image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: ${{ matrix.dockerfile }}
+          # linux/amd64 only: the CUDA torch wheels are x86_64-only, and a
+          # QEMU cross-build of torch/ctranslate2 would take hours.
+          platforms: linux/amd64
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=whisperx-web-${{ matrix.variant }}
+          # The Actions cache is read-only for fork PRs, so skip cache export
+          # on pull_request events.
+          cache-to: ${{ github.event_name != 'pull_request' && format('type=gha,mode=max,scope=whisperx-web-{0}', matrix.variant) || '' }}
