@@ -236,12 +236,13 @@ Mounting `WHISPERX_DOWNLOAD_ROOT` keeps downloaded models across restarts.
 
 ## Generative AI Statement
 
-This repository was created in a single day using the [GLM 3.5 Flash](https://huggingface.co/zai-org/GLM-5.3-Flash) LLM
-model, running on the [KITeGG Project's](https://gestaltung.ai) hardware housed at [Johannes Gutenberg University (JGU)](https://www.uni-mainz.de)
-in Mainz, Germany. It was created out of an immediate need for a mixture of the [WhisperX](https://github.com/m-bain/whisperX) 
-and the [Speaches](https://github.com/speaches-ai/speaches) projects, not as an original product.
+This repository was created in a single day using [Cline's](https://cline.bot) [WebStorm integration](https://plugins.jetbrains.com/plugin/28247-cline)
+with the [GLM 5.3 Flash](https://huggingface.co/zai-org/GLM-5.3-Flash) LLM model, running on the [KITeGG Project's](https://gestaltung.ai) 
+hardware housed at [Johannes Gutenberg University (JGU)](https://www.uni-mainz.de) in Mainz, Germany. It was created
+out of an immediate need for a mixture of the [WhisperX](https://github.com/m-bain/whisperX) and the [Speaches](https://github.com/speaches-ai/speaches) 
+projects, not as an original product.
 
-In this sense, the 
-work done here has to be fully and exclusively credited to the communities behind these two projects, as well as the
-countless data-labelers, factory workers, coders, writers, and artists whose output was ingested into the model. Feel
-free to use this and open PRs if you see fit, but always keep in mind that this is what it is: **Slopware**.
+In this sense, the work done here has to be fully and exclusively credited to the communities behind these two 
+projects, as well as the countless data-labelers, factory workers, coders, writers, and artists whose output was 
+ingested into the model. Feel free to use this and open PRs if you see fit, but always keep in mind that this is 
+what it is: **Slopware**.
