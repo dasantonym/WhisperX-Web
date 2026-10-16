@@ -203,3 +203,8 @@ Mounting `WHISPERX_DOWNLOAD_ROOT` keeps downloaded models across restarts.
   pipeline key, so concurrent requests share a loaded model safely.
 - Alignment models are cached per language and downloaded on first use.
 - Temporary uploads are deleted immediately after transcription.
+- A one-time `torchcodec is not installed correctly` warning at startup
+  (e.g. on CPU or Apple Silicon builds where the PyPI torchcodec wheel's CUDA
+  dependencies are absent) is harmless: WhisperX hands pyannote
+  already-decoded waveform tensors, and pyannote only uses torchcodec to read
+  audio from file paths, which never happens here.

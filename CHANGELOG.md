@@ -19,6 +19,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   before installing, and `pyproject.toml` declares the build system
   explicitly (`setuptools>=64` + `wheel`) so every pip version installs a
   PEP 621-capable backend.
+- The CUDA image logged a `torchcodec is not installed correctly` warning at
+  startup from pyannote.audio (WhisperX's diarization backend). torchcodec
+  ships one native build per FFmpeg major version; against Ubuntu 22.04's
+  FFmpeg 4.4 only the FFmpeg 4 variant can load, and that variant needs
+  `libpython3.10.so.1.0`, which the base image does not ship. `Dockerfile.cuda`
+  now installs the `libpython3.10` package so torchcodec imports cleanly. The
+  warning was cosmetic — WhisperX always passes pyannote in-memory waveform
+  tensors, so torchcodec's file decoding was never exercised — but it is gone.
 
 ### Added
 
