@@ -14,6 +14,8 @@ alignment, diarization) as additional form fields.
 - WhisperX batched inference, word-level alignment, and speaker diarization.
 - Per-request model selection with an LRU pipeline cache
   (`WHISPERX_MODEL_CACHE_SIZE`).
+- Browser UI at the root path: point a browser at the server and transcribe
+  with every WhisperX option (like the Speaches playground).
 - Optional bearer-token authentication.
 - CPU and CUDA Docker images.
 
@@ -144,6 +146,21 @@ HuggingFace error.
   diarization ran.
 - `tsv` — `start`, `end`, (`speaker`,) `text` columns.
 
+## Browser UI
+
+Point a browser at the server root (`http://localhost:8000/`) for a Gradio
+playground in the style of the [Speaches](https://github.com/speaches-ai/speaches)
+interface: upload or record audio, pick the response format, and configure
+every WhisperX knob the API accepts — model/task/language/prompt, decoding
+parameters (batch size, beam search, thresholds, …), VAD, word-timestamp
+alignment, and diarization (including a HuggingFace token field for gated
+pyannote models). It drives the same engine and renders the same response
+formats as the API.
+
+The UI is **disabled** when `WHISPERX_API_KEY` is set: it runs server-side and
+could otherwise bypass API-key authentication. The root path then explains
+this and points to the API documentation instead.
+
 ## Configuration (environment variables)
 
 | Variable                   | Default                                        | Description |
@@ -158,7 +175,7 @@ HuggingFace error.
 | `WHISPERX_DOWNLOAD_ROOT`   | HF cache default                               | Model download directory (mount a volume in Docker). |
 | `WHISPERX_LOCAL_FILES_ONLY`| `false`                                        | Never reach the network for models. |
 | `HF_TOKEN` (or `HUGGINGFACE_TOKEN`, `HUGGING_FACE_HUB_TOKEN`) | – | HuggingFace token for gated models. |
-| `WHISPERX_API_KEY`         | –                                              | When set, requests must send `Authorization: Bearer <key>`. `/health`, `/docs`, `/openapi.json` stay open. |
+| `WHISPERX_API_KEY`         | –                                              | When set, requests must send `Authorization: Bearer <key>`. `/health`, `/docs`, `/openapi.json` stay open. **Disables the browser UI.** |
 | `WHISPERX_MODEL_CACHE_SIZE`| `1`                                            | LRU size for loaded ASR pipelines. |
 | `WHISPERX_PRELOAD_MODEL`   | `false`                                        | Load the default model at startup. |
 | `WHISPERX_DIARIZE_MODEL`   | `pyannote/speaker-diarization-community-1`     | Default diarization model. |

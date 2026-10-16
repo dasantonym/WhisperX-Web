@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Annotated
 
 from fastapi import FastAPI, File, Form, Request, UploadFile
-from fastapi.responses import JSONResponse, Response
+from fastapi.responses import HTMLResponse, JSONResponse, Response
 from huggingface_hub.errors import GatedRepoError, RepositoryNotFoundError
 from pydantic import BaseModel
 
@@ -24,6 +24,7 @@ from whisperx_web.api_types import (
     ModelObject,
     ResponseFormat,
     Task,
+    WHISPER_MODEL_NAMES,
 )
 from whisperx_web.config import Settings, get_settings
 from whisperx_web.transcriber import (
@@ -36,12 +37,23 @@ __all__ = ["app", "create_app", "cli"]
 
 logger = logging.getLogger("whisperx_web")
 
-_MODEL_NAMES = {
-    "tiny.en", "tiny", "base.en", "base", "small.en", "small", "medium.en",
-    "medium", "large-v1", "large-v2", "large-v3", "large", "large-v3-turbo",
-    "turbo", "distil-large-v2", "distil-large-v3", "distil-medium.en",
-    "distil-small.en", "large-v2-melotto", "belarge", "large-v3-turbo-q8",
-}
+# UI disabled page: served at "/" when WHISPERX_API_KEY is configured, since
+# a server-side browser UI could otherwise be used to bypass API-key auth.
+_UI_DISABLED_HTML = """\
+<!doctype html>
+<html>
+<head><title>WhisperX Web</title></head>
+<body style="font-family: system-ui, sans-serif; margin: 3rem; max-width: 44rem;">
+<h1>WhisperX Web</h1>
+<p>The browser UI is disabled because <code>WHISPERX_API_KEY</code> is
+configured on this server. Unset that variable to enable the interactive
+transcription page at this address.</p>
+<p>Programmatic access stays available — see the
+<a href="/docs">API documentation</a>. Clients authenticate with
+<code>Authorization: Bearer &lt;key&gt;</code>.</p>
+</body>
+</html>
+"""
 
 
 class TranscriptionForm(BaseModel):
@@ -62,7 +74,7 @@ class TranscriptionForm(BaseModel):
         Form(
             description=(
                 "ID of the model to use: a WhisperX model name (one of "
-                f"{', '.join(sorted(_MODEL_NAMES))}) or any huggingface "
+                f"{', '.join(sorted(WHISPER_MODEL_NAMES))}) or any huggingface "
                 "whisper model path (e.g. openai/whisper-large-v3). "
                 "Defaults to the server-configured model."
             ),
@@ -257,6 +269,16 @@ def _form_to_params(
     )
 
 
+def _package_version() -> str:
+    """Installed package version (for /openapi.json); 0.0.0 when not installed."""
+    from importlib.metadata import PackageNotFoundError, version
+
+    try:
+        return version("whisperx-web")
+    except PackageNotFoundError:
+        return "0.0.0"
+
+
 class AppState:
     """Holds shared services attached to ``app.state``."""
 
@@ -282,7 +304,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     app = FastAPI(
         title="WhisperX Web",
-        version="0.1.0",
+        version=_package_version(),
         description=(
             "OpenAI-compatible transcription API backed by WhisperX "
             "(batched ASR, word timestamps, alignment, diarization)."
@@ -300,7 +322,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         async def check_api_key(
             request: Request, call_next: Callable[..., Awaitable[Response]]
         ) -> Response:
-            if request.url.path in ("/health", "/openapi.json", "/docs"):
+            if request.url.path in ("/", "/health", "/openapi.json", "/docs"):
                 return await call_next(request)
             auth = request.headers.get("Authorization", "")
             if not auth.startswith("Bearer ") or auth[7:] != settings.api_key:
@@ -333,8 +355,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         even when it is not listed here.
         """
         services: AppState = app.state.services
-        names = sorted(_MODEL_NAMES)
-        if services.settings.default_model not in _MODEL_NAMES:
+        names = sorted(WHISPER_MODEL_NAMES)
+        if services.settings.default_model not in WHISPER_MODEL_NAMES:
             names.append(services.settings.default_model)
             names.sort()
         return ModelListResponse(
@@ -402,6 +424,32 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             "Transcribed %s in %.2fs", file.filename, time.monotonic() - started
         )
         return formats.render_response(output, form.response_format)
+
+    # Browser UI at the root path, like Speaches. Disabled when an API key is
+    # configured: the UI drives the transcriber server-side and would
+    # otherwise bypass API-key authentication, so only the explanation page
+    # below is served in that case.
+    if settings.api_key:
+
+        @app.get("/", include_in_schema=False)
+        async def ui_disabled() -> Response:
+            return HTMLResponse(_UI_DISABLED_HTML)
+
+    else:
+        try:
+            from whisperx_web.ui import create_ui
+
+            import gradio as gr
+        except ImportError:  # pragma: no cover
+            logger.warning(
+                "gradio is not installed; the browser UI is disabled "
+                "(reinstall the package to restore it)."
+            )
+        else:
+            app = gr.mount_gradio_app(
+                app, create_ui(settings, app.state.services.transcriber), path="/"
+            )
+            logger.info("Browser UI available at /")
 
     return app
 

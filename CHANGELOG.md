@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0/).
 
+## [Unreleased]
+
+### Added
+
+- Browser UI at the root path: a Gradio playground (in the style of the
+  Speaches interface) for anyone calling up the service in a browser. It
+  offers audio upload/recording, every WhisperX configuration option
+  (model/task/language, decoding knobs, VAD, alignment, diarization with a
+  HuggingFace token field), all six response formats, and drives the same
+  transcriber as the API. The UI is disabled when `WHISPERX_API_KEY` is
+  configured — a server-side page could otherwise bypass API-key auth; the
+  root path then serves an explanation linking to `/docs`. Gradio is pinned
+  to 5.x because Gradio 6's `huggingface-hub>=1.16` requirement conflicts
+  with WhisperX's `huggingface-hub<1.0.0` pin.
+
+### Changed
+
+- `/openapi.json` now reports the installed package version instead of a
+  hardcoded one.
+
 ## [0.2.0] - 2026-10-16
 
 ### Changed

@@ -88,6 +88,16 @@ class HealthResponse(BaseModel):
     preloaded: bool
 
 
+# WhisperX model names selectable through the ``model`` field (and the browser
+# UI dropdown). Lives here so both the API and the UI share one definition.
+WHISPER_MODEL_NAMES = {
+    "tiny.en", "tiny", "base.en", "base", "small.en", "small", "medium.en",
+    "medium", "large-v1", "large-v2", "large-v3", "large", "large-v3-turbo",
+    "turbo", "distil-large-v2", "distil-large-v3", "distil-medium.en",
+    "distil-small.en", "large-v2-melotto", "belarge", "large-v3-turbo-q8",
+}
+
+
 MODEL_OWNER = "whisperx-web"
 
 
