@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   root path then serves an explanation linking to `/docs`. Gradio is pinned
   to 5.x because Gradio 6's `huggingface-hub>=1.16` requirement conflicts
   with WhisperX's `huggingface-hub<1.0.0` pin.
+- Added a statement on the use of generative AI for this project.
 
 ### Changed
 
