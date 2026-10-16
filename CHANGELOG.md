@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- The CUDA Docker image started with `exec: whisperx-web: not found` because
+  its Ubuntu 22.04 base ships a Debian-patched pip 22.0.2 that checks
+  build-system requirements only by distribution name and ignores version
+  constraints; the project's legacy fallback therefore built with the system
+  setuptools (< 61), which predates PEP 621 support, and silently produced an
+  empty `UNKNOWN-0.0.0` package without the `whisperx-web` console script (or
+  the `whisperx_web` package at all). `Dockerfile.cuda` now upgrades pip
+  before installing, and `pyproject.toml` declares the build system
+  explicitly (`setuptools>=64` + `wheel`) so every pip version installs a
+  PEP 621-capable backend.
+
 ### Added
 
 - GitHub Actions workflow that builds the CPU and CUDA Docker images and
