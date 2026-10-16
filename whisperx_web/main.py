@@ -20,6 +20,8 @@ from whisperx_web import formats
 from whisperx_web.api_types import (
     MEDIA_TYPES,
     HealthResponse,
+    ModelListResponse,
+    ModelObject,
     ResponseFormat,
     Task,
 )
@@ -288,6 +290,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         lifespan=lifespan,
     )
     app.state.services = AppState(settings)
+    # Unix timestamp (seconds) reported as "created" for every /v1/models
+    # entry; OpenAI-compatible clients treat it as opaque metadata.
+    model_created = int(time.time())
 
     if settings.api_key:
 
@@ -318,6 +323,29 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             device=settings.device,
             default_model=settings.default_model,
             preloaded=services.preload_done,
+        )
+
+    @app.get("/v1/models", response_model=ModelListResponse)
+    async def models() -> ModelListResponse:
+        """List the ASR models selectable through the ``model`` field.
+
+        Any HuggingFace Whisper model path is also accepted per request,
+        even when it is not listed here.
+        """
+        services: AppState = app.state.services
+        names = sorted(_MODEL_NAMES)
+        if services.settings.default_model not in _MODEL_NAMES:
+            names.append(services.settings.default_model)
+            names.sort()
+        return ModelListResponse(
+            data=[
+                ModelObject(
+                    id=name,
+                    created=model_created,
+                    default=name == services.settings.default_model,
+                )
+                for name in names
+            ]
         )
 
     @app.post(

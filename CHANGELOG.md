@@ -30,6 +30,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- OpenAI-compatible `GET /v1/models` endpoint for model discovery. It lists
+  every WhisperX shorthand model name accepted by the `model` field plus the
+  server-configured default (flagged `"default": true`, appended even when it
+  is a custom HuggingFace path); any HuggingFace Whisper path remains accepted
+  per request even when not listed. The endpoint requires the API key when
+  `WHISPERX_API_KEY` is set.
 - GitHub Actions workflow that builds the CPU and CUDA Docker images and
   publishes them to the GitHub Container Registry on pushes to `main`,
   `v*` release tags, and manual dispatch (images are tagged `cpu`, `cuda`,

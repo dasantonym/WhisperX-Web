@@ -59,8 +59,14 @@ print(transcript.text)
 | Method | Path                        | Description                     |
 | ------ | --------------------------- | ------------------------------- |
 | `POST` | `/v1/audio/transcriptions`  | Transcribe an uploaded audio file |
+| `GET`  | `/v1/models`                | List selectable ASR models (OpenAI-compatible) |
 | `GET`  | `/health`                   | Server/device/model status      |
 | `GET`  | `/docs`, `/openapi.json`    | Interactive API documentation   |
+
+`/v1/models` lists the WhisperX shorthand model names accepted by the
+`model` field; the entry flagged `"default": true` is used when the field
+is omitted. Any HuggingFace Whisper path is also accepted per request,
+even when it is not listed.
 
 ## Request fields (`POST /v1/audio/transcriptions`)
 

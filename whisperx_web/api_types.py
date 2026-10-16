@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from enum import Enum
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict
 
@@ -85,3 +86,27 @@ class HealthResponse(BaseModel):
     device: str
     default_model: str
     preloaded: bool
+
+
+MODEL_OWNER = "whisperx-web"
+
+
+class ModelObject(BaseModel):
+    """A single selectable model (OpenAI-compatible ``/v1/models`` entry).
+
+    ``default`` is a WhisperX-Web extension: it marks the model used when a
+    transcription request omits the ``model`` field.
+    """
+
+    id: str
+    object: Literal["model"] = "model"
+    created: int
+    owned_by: str = MODEL_OWNER
+    default: bool = False
+
+
+class ModelListResponse(BaseModel):
+    """Payload of the ``/v1/models`` endpoint (OpenAI-compatible)."""
+
+    object: Literal["list"] = "list"
+    data: list[ModelObject]

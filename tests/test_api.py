@@ -120,6 +120,49 @@ class TestHealthEndpoint:
         }
 
 
+class TestModelsEndpoint:
+    def test_lists_known_models_with_default_flag(self, client):
+        response = client.get("/v1/models")
+
+        assert response.status_code == 200
+        body = response.json()
+        assert body["object"] == "list"
+        models = body["data"]
+        ids = [model["id"] for model in models]
+        assert ids == sorted(ids)
+        assert {"tiny", "large-v3", "turbo"} <= set(ids)
+        assert [model["id"] for model in models if model["default"]] == ["small"]
+        for model in models:
+            assert model["object"] == "model"
+            assert model["owned_by"] == "whisperx-web"
+            assert isinstance(model["created"], int)
+
+    def test_custom_default_model_is_listed_and_flagged(self, settings):
+        settings.default_model = "openai/whisper-large-v3"
+        app = create_app(settings)
+        with TestClient(app) as client:
+            body = client.get("/v1/models").json()
+
+        ids = [model["id"] for model in body["data"]]
+        assert "openai/whisper-large-v3" in ids
+        assert ids == sorted(ids)
+        assert [model["id"] for model in body["data"] if model["default"]] == [
+            "openai/whisper-large-v3"
+        ]
+
+    def test_requires_api_key_when_configured(self, settings):
+        settings.api_key = "secret"
+        app = create_app(settings)
+        with TestClient(app) as client:
+            unauthorized = client.get("/v1/models")
+            authorized = client.get(
+                "/v1/models", headers={"Authorization": "Bearer secret"}
+            )
+
+        assert unauthorized.status_code == 401
+        assert authorized.status_code == 200
+
+
 class TestTranscriptionsEndpoint:
     @staticmethod
     def post(client, **data):
