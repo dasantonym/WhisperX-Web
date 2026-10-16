@@ -10,7 +10,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "whisperx-web"
 version = "0.2.0"
-description = "OpenAI-compatible transcription web API wrapping WhisperX"
+description = "OpenAI-compatible transcription web API wrapping WhisperX, with a browser UI at the root path"
 readme = "README.md"
 requires-python = ">=3.10,<3.14"
 license = { text = "BSD-2-Clause" }

@@ -4,7 +4,9 @@ An OpenAI-compatible transcription web API built on
 [WhisperX](https://github.com/m-bain/whisperX). It exposes a single
 `POST /v1/audio/transcriptions` endpoint that accepts the same multipart form
 fields as the OpenAI Audio API, plus every WhisperX knob (batching, VAD,
-alignment, diarization) as additional form fields.
+alignment, diarization) as additional form fields — and a Gradio browser UI
+at the root path so anyone can transcribe by pointing a browser at the
+server.
 
 ## Features
 
