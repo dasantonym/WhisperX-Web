@@ -5,6 +5,12 @@ replaced by a stub *before* any ``whisperx_web`` module is imported, so unit
 tests never load models, touch CUDA or decode audio. Tests that exercise
 model caching and the transcription pipeline monkeypatch the stub callables
 with recording fakes (see ``tests/test_transcriber.py``).
+
+Set ``WHISPERX_WEB_REAL_WHISPERX=1`` to skip the stub and run against the
+real ``whisperx`` distribution instead. The CI ``compat`` job uses this mode
+for ``tests/test_whisperx_compat.py`` (and the optional smoke test), which
+verify that the WhisperX API surface ``whisperx_web`` depends on still
+matches reality.
 """
 
 from __future__ import annotations
@@ -67,7 +73,10 @@ def _install_whisperx_stub() -> None:
     sys.modules["whisperx.diarize"] = diarize
 
 
-_install_whisperx_stub()
+# The stub must be installed before any whisperx_web import. Skip it in
+# real-whisperx mode (used by the CI compat job); see the module docstring.
+if os.environ.get("WHISPERX_WEB_REAL_WHISPERX", "") != "1":
+    _install_whisperx_stub()
 
 import pytest  # noqa: E402
 

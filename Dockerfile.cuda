@@ -23,16 +23,25 @@ COPY whisperx_web ./whisperx_web
 # wheels up front so the later `pip install .` keeps them. cuDNN 9 comes from
 # the base image (required by ctranslate2 on GPU).
 #
+# WHISPERX_VERSION: see Dockerfile.cpu — canary builds pass the newest PyPI
+# release here to test the latest WhisperX against this image recipe.
+#
 # Ubuntu 22.04's system pip (22.0.2, Debian-patched) checks build-system
 # requirements only by distribution name and ignores version constraints, so
 # it would use the system setuptools (< 61, no PEP 621 support) and silently
 # build an empty UNKNOWN-0.0.0 package without the `whisperx-web` console
 # script. Upgrade pip first so the [build-system] table in pyproject.toml is
 # honored.
+ARG WHISPERX_VERSION=
 RUN python3 -m pip install --no-cache-dir --upgrade pip \
     && python3 -m pip install --no-cache-dir \
         'torch~=2.8.0' 'torchaudio~=2.8.0' 'torchvision~=0.23.0' \
         --index-url https://download.pytorch.org/whl/cu126 \
+    && if [ -n "$WHISPERX_VERSION" ]; then \
+        sed -i "s/^    \"whisperx[^\"]*\",$/    \"whisperx==$WHISPERX_VERSION\",/" pyproject.toml \
+        && grep -q "^    \"whisperx==$WHISPERX_VERSION\",$" pyproject.toml \
+        || { echo "Failed to override whisperx pin to $WHISPERX_VERSION" >&2; exit 1; } \
+    fi \
     && python3 -m pip install --no-cache-dir .
 
 ENV WHISPERX_HOST=0.0.0.0 \

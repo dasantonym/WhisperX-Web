@@ -12,10 +12,27 @@ COPY whisperx_web ./whisperx_web
 
 # whisperx pins torch~=2.8.0 / torchvision~=0.23.0; pre-install matching CPU
 # wheels so the later `pip install .` keeps them instead of swapping in the
-# CUDA-flavored builds from PyPI.
+# CUDA-flavored builds from PyPI. torchcodec comes from pyannote.audio
+# (torchcodec>=0.7.0) but PyPI's latest wheels are CUDA-linked (libnvrtc) and
+# warn on every pyannote import; pre-install the CPU build paired with
+# torch 2.8 (torchcodec 0.7) instead. The x86_64 marker skips this on arm64,
+# where the torchcodec 0.7 CPU wheel is not published (PyPI's wheel warns but
+# works — WhisperX passes pyannote in-memory waveform tensors, never files).
+#
+# WHISPERX_VERSION is empty for normal builds (uses the pyproject.toml pin).
+# The scheduled canary build passes the newest PyPI release here to test the
+# *latest* WhisperX against this image recipe; the guard below fails the
+# build loudly if the pin could not be rewritten.
+ARG WHISPERX_VERSION=
 RUN pip install --no-cache-dir \
         'torch~=2.8.0' 'torchaudio~=2.8.0' 'torchvision~=0.23.0' \
+        'torchcodec~=0.7.0; platform_machine == "x86_64"' \
         --index-url https://download.pytorch.org/whl/cpu \
+    && if [ -n "$WHISPERX_VERSION" ]; then \
+        sed -i "s/^    \"whisperx[^\"]*\",$/    \"whisperx==$WHISPERX_VERSION\",/" pyproject.toml \
+        && grep -q "^    \"whisperx==$WHISPERX_VERSION\",$" pyproject.toml \
+        || { echo "Failed to override whisperx pin to $WHISPERX_VERSION" >&2; exit 1; } \
+    fi \
     && pip install --no-cache-dir .
 
 ENV WHISPERX_HOST=0.0.0.0 \

@@ -15,7 +15,11 @@ readme = "README.md"
 requires-python = ">=3.10,<3.14"
 license = { text = "BSD-2-Clause" }
 dependencies = [
-    "whisperx>=3.7.0",
+    # Compatible-release pin: images only change when this pin is bumped
+    # deliberately. The scheduled canary Docker build (see
+    # .github/workflows/docker.yml) tests the latest WhisperX release so a
+    # bump is an informed decision, not a gamble.
+    "whisperx~=3.8.0",
     "fastapi>=0.115.0",
     "uvicorn[standard]>=0.32.0",
     "python-multipart>=0.0.20",
@@ -27,7 +31,7 @@ whisperx-web = "whisperx_web.main:cli"
 [project.optional-dependencies]
 dev = [
     "pytest>=8.0",
-    "httpx2>=1.0",
+    "httpx>=0.27",
 ]
 
 [tool.setuptools.packages.find]

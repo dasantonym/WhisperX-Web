@@ -7,8 +7,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- WhisperX is now pinned to a compatible-release range (`whisperx~=3.8.0`)
+  instead of a floating floor (`>=3.7.0`). Docker images therefore only pick
+  up new WhisperX releases when the pin is bumped deliberately, so a breaking
+  upstream release can no longer silently change what a rebuild produces.
+
+### Added
+
+- CI now gates every image publish on tests: a `unit` job runs the hermetic
+  suite on Python 3.10/3.12/3.13, and a `compat` job installs the real,
+  pinned WhisperX (with CPU torch wheels, mirroring `Dockerfile.cpu`) and
+  runs `tests/test_whisperx_compat.py`, which asserts every WhisperX API
+  surface the transcriber relies on (signatures of `load_model`,
+  `load_align_model`, `align`, `assign_word_speakers`, `load_audio`,
+  `DiarizationPipeline`, `pipeline.transcribe`, and `SAMPLE_RATE`) still
+  matches what we call. An optional end-to-end smoke test
+  (`tests/test_whisperx_smoke.py`, real `tiny` model on a public speech
+  sample) can be enabled via a workflow-dispatch input.
+- A weekly scheduled canary build (`dev-cpu`/`dev-cuda` image tags) builds
+  both images against the *latest* WhisperX release, with the pyproject pin
+  rewritten inside the build. If a new release breaks the image build or
+  conflicts with the hardcoded torch pins, the canary fails — while the
+  pinned `cpu`/`cuda`/`latest-*` images keep working until the pin is
+  reviewed and bumped with the canary's findings in hand.
+
 ### Fixed
 
+- The CPU Docker image logged a `torchcodec is not installed correctly`
+  warning on every pyannote import: pyannote.audio requires `torchcodec>=0.7.0`
+  with no upper bound, so resolution picked the newest PyPI wheel, which is
+  CUDA-linked (`libnvrtc.so.13`) and cannot initialize on a CPU-only image.
+  `Dockerfile.cpu` now pre-installs `torchcodec~=0.7.0` from the PyTorch CPU
+  wheel index — the release paired with its `torch~=2.8.0` pin — behind an
+  `x86_64` platform marker (the 0.7 CPU wheel is only published for x86_64;
+  on arm64 builds the PyPI wheel is used, which warns but works because
+  WhisperX always passes pyannote in-memory waveform tensors, never files).
 - The CUDA Docker image started with `exec: whisperx-web: not found` because
   its Ubuntu 22.04 base ships a Debian-patched pip 22.0.2 that checks
   build-system requirements only by distribution name and ignores version

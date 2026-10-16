@@ -1,11 +1,24 @@
-# Builds the CPU and CUDA images and publishes them to the GitHub Container
-# Registry (ghcr.io/dasantonym/whisperx-web).
+# Tests the package against real and stubbed WhisperX, builds the CPU and
+# CUDA images, and publishes them to the GitHub Container Registry
+# (ghcr.io/dasantonym/whisperx-web).
+#
+# Failure modes this workflow guards against:
+# - The `unit` and `compat` jobs gate every image publish: `compat` runs the
+#   WhisperX compatibility tests (tests/test_whisperx_compat.py) against the
+#   pinned whisperx version, so an upstream API change fails CI before any
+#   image is built.
+# - The weekly `canary` job builds both images against the *latest* WhisperX
+#   release (published only to the rolling `dev-cpu`/`dev-cuda` tags), so a
+#   new upstream release that breaks the build or conflicts with our torch
+#   pins surfaces here — while the pinned `cpu`/`cuda`/`latest-*` images keep
+#   working until the pin is bumped deliberately.
 #
 # Tagging scheme (per variant):
 # - pushes to main:  `cpu`, `cuda` (rolling build of main)
 # - `v*` tag pushes: `<version>-cpu/-cuda` and `latest-cpu/-cuda` release
 #   tags, plus the rolling `cpu`/`cuda` tags
 # - pull requests:   build both images, push nothing
+# - weekly canary:   `dev-cpu`, `dev-cuda` (unpinned WhisperX, never `latest`)
 name: Docker
 
 on:
@@ -14,7 +27,15 @@ on:
     tags: ["v*"]
   pull_request:
     branches: [main]
+  schedule:
+    # Mondays 06:00 UTC: canary build against the latest WhisperX release.
+    - cron: "0 6 * * 1"
   workflow_dispatch:
+    inputs:
+      run_smoke:
+        description: "Also run the end-to-end WhisperX smoke test (downloads the tiny model)"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -25,8 +46,71 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  unit:
+    name: Unit tests (stubbed WhisperX, Python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.12", "3.13"]
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install package (with dev dependencies)
+        run: |
+          python -m pip install --upgrade pip
+          pip install .[dev]
+
+      - name: Run hermetic test suite
+        # No WHISPERX_WEB_REAL_WHISPERX: conftest.py installs the whisperx
+        # stub, so torch and the real package are never imported.
+        run: pytest -v
+
+  compat:
+    name: WhisperX compatibility tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      # Pre-install the CPU wheels matching whisperx's torch pins (mirrors
+      # Dockerfile.cpu) so `pip install .` resolves cleanly without CUDA.
+      - name: Install CPU torch wheels
+        run: |
+          python -m pip install --upgrade pip
+          pip install 'torch~=2.8.0' 'torchaudio~=2.8.0' 'torchvision~=0.23.0' \
+            --index-url https://download.pytorch.org/whl/cpu
+
+      - name: Install package (with the real, pinned WhisperX)
+        run: pip install .[dev]
+
+      - name: Run WhisperX compatibility tests
+        env:
+          WHISPERX_WEB_REAL_WHISPERX: "1"
+        run: pytest -v tests/test_whisperx_compat.py
+
+      - name: Run end-to-end smoke test (tiny model)
+        if: inputs.run_smoke == true
+        env:
+          WHISPERX_WEB_REAL_WHISPERX: "1"
+          WHISPERX_WEB_SMOKE: "1"
+        run: pytest -v tests/test_whisperx_smoke.py
+
   build:
     name: Build ${{ matrix.variant }} image
+    needs: [unit, compat]
     runs-on: ubuntu-latest
     timeout-minutes: 120
     strategy:
@@ -78,3 +162,60 @@ jobs:
           # The Actions cache is read-only for fork PRs, so skip cache export
           # on pull_request events.
           cache-to: ${{ github.event_name != 'pull_request' && format('type=gha,mode=max,scope=whisperx-web-{0}', matrix.variant) || '' }}
+
+  canary:
+    name: Canary build (latest WhisperX, ${{ matrix.variant }})
+    # Only on the weekly schedule or a manual dispatch; regular pushes and
+    # PRs build the pinned images instead.
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    needs: [unit, compat]
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - variant: cpu
+            dockerfile: Dockerfile.cpu
+          - variant: cuda
+            dockerfile: Dockerfile.cuda
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Resolve latest WhisperX version
+        id: whisperx
+        run: |
+          version="$(pip index versions whisperx 2>/dev/null | sed -n 's/^whisperx (\([^)]*\)).*/\1/p' | head -n1)"
+          if [ -z "$version" ]; then
+            echo "Could not determine the latest whisperx version" >&2
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "Latest WhisperX release: $version"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push ${{ matrix.variant }} canary image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: ${{ matrix.dockerfile }}
+          platforms: linux/amd64
+          push: true
+          # The Dockerfile rewrites the pyproject.toml pin to this version;
+          # if the rewrite fails or the newest WhisperX conflicts with the
+          # torch pins below, the build fails loudly here.
+          build-args: WHISPERX_VERSION=${{ steps.whisperx.outputs.version }}
+          # Lowercase image name: GHCR requires it.
+          tags: ghcr.io/${{ github.repository }}:dev-${{ matrix.variant }}
+          cache-from: type=gha,scope=whisperx-web-canary-${{ matrix.variant }}
+          cache-to: type=gha,mode=max,scope=whisperx-web-canary-${{ matrix.variant }}
