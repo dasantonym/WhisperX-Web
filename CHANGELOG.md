@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0/).
 
+## [Unreleased]
+
+### Fixed
+
+- Every `/v1/audio/transcriptions` request sent a corrupted decode prompt to
+  WhisperX: the `task` form field arrived as the `Task` str-Enum, and
+  faster-whisper's `Tokenizer` builds the prompt task token via
+  `"<|%s|>" % task`, which yielded `"<|Task.TRANSCRIBE|>"` — an invalid token
+  id (`None`). The task token was therefore silently missing from every
+  request's `sot_sequence`, subtly changing decoding (e.g. large-v3
+  transcribing a clip of spoken "Blau" returned "blog." instead of "blow."),
+  and `task=translate` was completely broken through the API (the model
+  transcribed in the source language instead of translating). The endpoint
+  now forwards `task` as a plain string; the browser UI was unaffected.
+
 ## [1.0.0] - 2026-10-16
 
 First stable release.

@@ -247,7 +247,12 @@ def _form_to_params(
     return TranscriptionParams(
         model=form.model or default_model,
         language=form.language,
-        task=form.task,
+        # Form fields arrive as `Task` (a str-Enum). Faster-whisper's Tokenizer
+        # builds the prompt task token via "<|%s|>" % task, which for a
+        # str-Enum yields "<|Task.TRANSCRIBE|>" — an invalid token id (None),
+        # silently dropping the task token from every decode prompt and
+        # breaking task=translate. Forward the plain string value instead.
+        task=str(form.task.value),
         temperature=form.temperature,
         chunk_size=form.chunk_size,
         prompt=prompt,

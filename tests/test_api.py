@@ -199,6 +199,11 @@ class TestTranscriptionsEndpoint:
         params = captured["params"]
 
         assert params.language == "de"
+        # Must be a plain str, not the Task enum: faster-whisper's Tokenizer
+        # builds the prompt task token via "<|%s|>" % task, which for a
+        # str-Enum produces an invalid token and drops the task token
+        # from the decode prompt (silently breaking task=translate).
+        assert type(params.task) is str
         assert params.task == "translate"
         assert params.temperature == pytest.approx(0.5)
         assert params.batch_size == 4
