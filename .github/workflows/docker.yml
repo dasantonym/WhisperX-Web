@@ -2,6 +2,12 @@
 # CUDA images, and publishes them to the GitHub Container Registry
 # (ghcr.io/dasantonym/whisperx-web).
 #
+# Runners are pinned to ubuntu-24.04 instead of ubuntu-latest: the
+# ubuntu-latest label migrates to Ubuntu 26.04 over Oct-Nov 2026
+# (actions/runner-images#14748), and mixing runner distros mid-rollout would
+# confound CI signals. Bump the pin deliberately once 26.04 has proven
+# itself.
+#
 # Failure modes this workflow guards against:
 # - The `unit` and `compat` jobs gate every image publish: `compat` runs the
 #   WhisperX compatibility tests (tests/test_whisperx_compat.py) against the
@@ -48,7 +54,7 @@ concurrency:
 jobs:
   unit:
     name: Unit tests (stubbed WhisperX, Python ${{ matrix.python-version }})
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
@@ -74,7 +80,7 @@ jobs:
 
   compat:
     name: WhisperX compatibility tests
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
       - name: Check out repository
@@ -111,7 +117,7 @@ jobs:
   build:
     name: Build ${{ matrix.variant }} image
     needs: [unit, compat]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 120
     strategy:
       fail-fast: false
@@ -169,7 +175,7 @@ jobs:
     # PRs build the pinned images instead.
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     needs: [unit, compat]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 120
     strategy:
       fail-fast: false
