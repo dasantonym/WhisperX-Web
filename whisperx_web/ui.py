@@ -38,37 +38,57 @@ _VAD_METHODS = ["pyannote", "silero"]
 _INTERPOLATE_METHODS = ["nearest", "previous", "zero"]
 
 
+def _value_or_default(value: object, default: object) -> object:
+    """Treat a cleared/empty Number field as "unset".
+
+    Gradio's Number component displays (and submits) ``0`` for empty fields
+    with no placeholder — it never sends ``None`` from the browser. Where 0
+    is not a meaningful value, fall back to the default instead.
+    """
+    return default if not value else value
+
+
 def build_params(settings: Settings, **fields: object) -> TranscriptionParams:
     """Turn raw UI values into a validated ``TranscriptionParams``.
 
-    Mirrors the API's optional-field semantics: ``None``/empty means "use the
+    Mirrors the API's optional-field semantics: empty/0 means "use the
     server default" for plain-typed fields (``batch_size``, decoding knobs),
-    while for the threshold fields and speaker counts ``None`` is itself a
-    meaningful value ("disable"/"unspecified") and is forwarded as-is.
+    while for the threshold fields and speaker counts empty/0 means
+    "disabled"/"unspecified" and is forwarded as ``None``. The exception is
+    ``no_repeat_ngram_size``, where 0 is a meaningful value (the default).
     """
     model = fields.get("model") or settings.default_model
     language = fields.get("language") or None
     prompt = fields.get("prompt") or None
     hotwords = fields.get("hotwords") or None
 
-    # Plain-typed numbers: an empty field falls back to the parameter default
-    # (never forward None where ctranslate2 requires an int/float).
-    batch_size = fields.get("batch_size") or settings.default_batch_size
-    optional_decoding = {}
-    for name, default in (
-        ("beam_size", 5),
-        ("best_of", 5),
-        ("patience", 1.0),
-        ("length_penalty", 1.0),
-        ("repetition_penalty", 1.0),
-        ("no_repeat_ngram_size", 0),
-    ):
-        value = fields.get(name)
-        optional_decoding[name] = default if value is None else value
+    # Plain-typed numbers: an empty (submitted as 0) field falls back to the
+    # parameter default (never forward None/0 where ctranslate2 requires
+    # ints/floats).
+    batch_size = _value_or_default(
+        fields.get("batch_size"), settings.default_batch_size
+    )
+    chunk_size = _value_or_default(fields.get("chunk_size"), 30)
+    optional_decoding = {
+        name: _value_or_default(fields.get(name), default)
+        for name, default in (
+            ("beam_size", 5),
+            ("best_of", 5),
+            ("patience", 1.0),
+            ("length_penalty", 1.0),
+            ("repetition_penalty", 1.0),
+        )
+    }
+    # 0 is the meaningful default ("disabled") for this knob.
+    optional_decoding["no_repeat_ngram_size"] = fields.get("no_repeat_ngram_size")
+    if optional_decoding["no_repeat_ngram_size"] is None:
+        optional_decoding["no_repeat_ngram_size"] = 0
 
-    # Thresholds and speaker counts: None is a valid value (disable/unset).
+    # Thresholds and speaker counts: unset means disabled/unspecified.
+    # (Gradio submits 0 for a cleared field; 0 is never a sensible value
+    # here, so it is normalized to None.)
     thresholds = {
-        name: fields.get(name)
+        name: _value_or_default(fields.get(name), None)
         for name in (
             "compression_ratio_threshold",
             "logprob_threshold",
@@ -89,7 +109,7 @@ def build_params(settings: Settings, **fields: object) -> TranscriptionParams:
             "temperature_increment_on_fallback"
         ),
         batch_size=batch_size,
-        chunk_size=fields.get("chunk_size", 30),
+        chunk_size=chunk_size,
         align=bool(fields.get("align")),
         align_model=fields.get("align_model") or None,
         interpolate_method=fields.get("interpolate_method") or "nearest",
@@ -209,43 +229,42 @@ def create_ui(settings: Settings, transcriber: WhisperXTranscriber) -> gr.Blocks
             )
             batch_size = gr.Number(
                 value=settings.default_batch_size,
-                minimum=1,
                 precision=0,
                 label="Batch size",
+                info="Clear to use the server default.",
             )
             chunk_size = gr.Number(
                 value=30,
-                minimum=1,
                 precision=0,
                 label="Chunk size (seconds)",
-                info="Duration of audio chunks fed to VAD/ASR.",
+                info="Duration of audio chunks fed to VAD/ASR; clear for 30.",
             )
             with gr.Row():
-                beam_size = gr.Number(
-                    value=5, minimum=1, precision=0, label="Beam size"
-                )
-                best_of = gr.Number(
-                    value=5, minimum=1, precision=0, label="Best of"
-                )
+                beam_size = gr.Number(value=5, precision=0, label="Beam size")
+                best_of = gr.Number(value=5, precision=0, label="Best of")
                 patience = gr.Number(value=1.0, label="Patience")
                 length_penalty = gr.Number(value=1.0, label="Length penalty")
                 repetition_penalty = gr.Number(
                     value=1.0, label="Repetition penalty"
                 )
                 no_repeat_ngram_size = gr.Number(
-                    value=0, minimum=0, precision=0, label="No-repeat n-gram size"
+                    value=0, precision=0, label="No-repeat n-gram size"
                 )
             with gr.Row():
                 compression_ratio_threshold = gr.Number(
                     value=2.4,
                     label="Compression ratio threshold",
-                    info="Clear to disable.",
+                    info="Clear to disable the check.",
                 )
                 logprob_threshold = gr.Number(
-                    value=-1.0, label="Log-prob threshold", info="Clear to disable."
+                    value=-1.0,
+                    label="Log-prob threshold",
+                    info="Clear to disable the check.",
                 )
                 no_speech_threshold = gr.Number(
-                    value=0.6, label="No-speech threshold", info="Clear to disable."
+                    value=0.6,
+                    label="No-speech threshold",
+                    info="Clear to disable the check.",
                 )
             with gr.Row():
                 condition_on_previous_text = gr.Checkbox(
@@ -309,14 +328,14 @@ def create_ui(settings: Settings, transcriber: WhisperXTranscriber) -> gr.Blocks
                 num_speakers = gr.Number(
                     label="Number of speakers",
                     precision=0,
-                    minimum=1,
-                    info="Exact count (overrides min/max). Clear if unknown.",
+                    placeholder="auto",
+                    info="Exact count (overrides min/max). Leave empty if unknown.",
                 )
                 min_speakers = gr.Number(
-                    label="Min speakers", precision=0, minimum=1
+                    label="Min speakers", precision=0, placeholder="auto"
                 )
                 max_speakers = gr.Number(
-                    label="Max speakers", precision=0, minimum=1
+                    label="Max speakers", precision=0, placeholder="auto"
                 )
             hf_token = gr.Textbox(
                 label="HuggingFace token",

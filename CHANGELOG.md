@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- The browser UI rejected every submission with "Value 0 is less than minimum
+  value 1" when optional numeric fields (speaker counts) were left empty:
+  Gradio's Number component displays and submits 0 — never `None` — for
+  empty fields without a placeholder, and the fields' `minimum=1` constraint
+  rejected that server-side. The UI no longer sets `minimum` on optional
+  numbers, speaker fields show an "auto" placeholder instead of a confusing
+  0, and `build_params` now normalizes a submitted 0 to "unspecified"/server
+  default everywhere except `no_repeat_ngram_size` (where 0 is the meaningful
+  default).
+
 ### Added
 
 - Browser UI at the root path: a Gradio playground (in the style of the

@@ -163,6 +163,56 @@ def test_transcribe_audio_builds_params(
     assert captured["path"] == str(audio)
 
 
+def test_build_params_treats_zero_as_unset(settings):
+    """Gradio submits 0 (never None) for cleared Number fields.
+
+    0 must mean "unspecified" wherever 0 is not a meaningful value,
+    otherwise a form with empty optional fields cannot be submitted at all
+    (gradio's minimum validation used to reject it with 'Value 0 is less
+    than minimum value 1').
+    """
+    from whisperx_web.ui import build_params
+
+    params = build_params(
+        settings,
+        batch_size=0,
+        chunk_size=0,
+        beam_size=0,
+        best_of=0,
+        patience=0,
+        length_penalty=0,
+        repetition_penalty=0,
+        num_speakers=0,
+        min_speakers=0,
+        max_speakers=0,
+        compression_ratio_threshold=0,
+        logprob_threshold=0,
+        no_speech_threshold=0,
+    )
+    assert params.batch_size == settings.default_batch_size
+    assert params.chunk_size == 30
+    assert params.beam_size == 5
+    assert params.best_of == 5
+    assert params.patience == 1.0
+    assert params.length_penalty == 1.0
+    assert params.repetition_penalty == 1.0
+    assert params.num_speakers is None
+    assert params.min_speakers is None
+    assert params.max_speakers is None
+    assert params.compression_ratio_threshold is None
+    assert params.logprob_threshold is None
+    assert params.no_speech_threshold is None
+
+
+def test_build_params_zero_is_meaningful_for_ngram(settings):
+    from whisperx_web.ui import build_params
+
+    params = build_params(settings, no_repeat_ngram_size=0)
+    assert params.no_repeat_ngram_size == 0  # 0 = disabled, not "unset"
+    params = build_params(settings)
+    assert params.no_repeat_ngram_size == 0  # missing field -> default
+
+
 def test_transcribe_audio_requires_audio(settings):
     import gradio as gr
 
