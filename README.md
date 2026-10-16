@@ -231,3 +231,15 @@ Mounting `WHISPERX_DOWNLOAD_ROOT` keeps downloaded models across restarts.
   dependencies are absent) is harmless: WhisperX hands pyannote
   already-decoded waveform tensors, and pyannote only uses torchcodec to read
   audio from file paths, which never happens here.
+
+## Generative AI Statement
+
+This repository was created in a single day using the [GLM 3.5 Flash](https://huggingface.co/zai-org/GLM-5.3-Flash) LLM
+model, running on the [KITeGG Project's](https://gestaltung.ai) hardware housed at [Johannes Gutenberg University (JGU)](https://www.uni-mainz.de)
+in Mainz, Germany. It was created out of an immediate need for a mixture of the [WhisperX](https://github.com/m-bain/whisperX) 
+and the [Speaches](https://github.com/speaches-ai/speaches) projects, not as an original product.
+
+In this sense, the 
+work done here has to be fully and exclusively credited to the communities behind these two projects, as well as the
+countless data-labelers, factory workers, coders, writers, and artists whose output was ingested into the model. Feel
+free to use this and open PRs if you see fit, but always keep in mind that this is what it is: **Slopware**.
