@@ -1,3 +1,12 @@
+[build-system]
+# Declared explicitly: Ubuntu 22.04's system pip (22.0.2, patched by Debian)
+# falls back to the legacy backend with the system setuptools (<61), which
+# predates PEP 621 support and silently builds an empty UNKNOWN-0.0.0 package
+# without this table — dropping the `whisperx-web` console script from the
+# CUDA Docker image.
+requires = ["setuptools>=64", "wheel"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "whisperx-web"
 version = "0.1.0"
