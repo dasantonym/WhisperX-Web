@@ -19,6 +19,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and `task=translate` was completely broken through the API (the model
   transcribed in the source language instead of translating). The endpoint
   now forwards `task` as a plain string; the browser UI was unaffected.
+- The weekly canary build failed to push its images because the tag was
+  composed directly from `github.repository`
+  (`ghcr.io/dasantonym/WhisperX-Web:dev-*`), and Docker rejects image names
+  with uppercase letters — the pinned `build` job was unaffected because
+  `docker/metadata-action` lowercases its image name. The canary now
+  lowercases `GITHUB_REPOSITORY` (via `tr`) when composing the
+  `dev-cpu`/`dev-cuda` tags.
 
 ## [1.0.0] - 2026-10-16
 

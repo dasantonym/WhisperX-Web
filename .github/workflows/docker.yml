@@ -210,6 +210,18 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Compute lowercase image name
+        id: image
+        run: |
+          # metadata-action lowercases the image name for the pinned builds;
+          # the canary composes its tag directly, so lowercase it here:
+          # GHCR rejects repository names with uppercase letters, and
+          # github.repository is "dasantonym/WhisperX-Web". tr instead of
+          # the ${var,,} Bash 4 expansion keeps this shell-agnostic.
+          repo="$(echo "$GITHUB_REPOSITORY" | tr '[:upper:]' '[:lower:]')"
+          name="ghcr.io/$repo:dev-${{ matrix.variant }}"
+          echo "name=$name" >> "$GITHUB_OUTPUT"
+
       - name: Build and push ${{ matrix.variant }} canary image
         uses: docker/build-push-action@v7
         with:
@@ -221,7 +233,6 @@ jobs:
           # if the rewrite fails or the newest WhisperX conflicts with the
           # torch pins below, the build fails loudly here.
           build-args: WHISPERX_VERSION=${{ steps.whisperx.outputs.version }}
-          # Lowercase image name: GHCR requires it.
-          tags: ghcr.io/${{ github.repository }}:dev-${{ matrix.variant }}
+          tags: ${{ steps.image.outputs.name }}
           cache-from: type=gha,scope=whisperx-web-canary-${{ matrix.variant }}
           cache-to: type=gha,mode=max,scope=whisperx-web-canary-${{ matrix.variant }}
